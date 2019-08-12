@@ -26,9 +26,7 @@ import (
 )
 
 
-var CONN_IP_NOTEBOOK string
 var STATUS_NOTEBOOK bool
-var flag bool = false
 
 
 func main() {
@@ -48,7 +46,6 @@ func main() {
     {
         android.GET("status", Status)
         android.GET("/shutdown", func(c *gin.Context) {
-
 
             fmt.Println("shutdonw commmand comes in from android")
 
@@ -74,47 +71,43 @@ func main() {
     notebook := router.Group("api/v1/notebook")
     {
         notebook.POST("/turnon", TurnOnEndpoint)
-        notebook.GET("/ping", PingToNotebook)
+        //notebook.GET("/ping", PingToNotebook)
     }
 
 
 
     router.GET("/api/v1/ping", PingOfServer)
-    router.GET("/api/v1/long", gin.WrapF(manager.SubscriptionHandler))
-    
+    //router.GET("/api/v1/long", gin.WrapF(manager.SubscriptionHandler))
+    router.GET("/api/v1/long", gin.WrapF(getEventSubscriptionHandler(manager)))
+
     
     router.Run(":8004")
 }
 
-func generateRandomEvents(lpManager *golongpoll.LongpollManager) {
-    for {
-        if flag {
-            lpManager.Publish("farmss", "shutdown plz")
-        }
-    }
+func getEventSubscriptionHandler(manager *golongpoll.LongpollManager) func(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("Hello world")
+    return func(w http.ResponseWriter, r *http.Request) {
+        //called whenever client request has come....
+        // Health Check via Long Polling...
+        Alive()
+
+		manager.SubscriptionHandler(w, r)
+	}
 }
 
 
-func PingToNotebook(c *gin.Context){
-    fmt.Println("Sent to notebook and waiting... response") 
-    resp, err := http.Get("http://"+CONN_IP_NOTEBOOK+":8003/ping")
-    if err != nil{
-        fmt.Println(err.Error())
-    }
-    defer resp.Body.Close()
-    fmt.Println(resp.Body) 
-    c.String(http.StatusOK, "OK ") 
+func Alive(){
+    // reset timer
+    fmt.Println("notebook is alive")
+
 }
 
 
 func PingOfServer(c *gin.Context){
 
-
-
     c.JSON(200, gin.H{
         "message":"pong",
         "notebook_state":STATUS_NOTEBOOK,
-        "notebook_ip":CONN_IP_NOTEBOOK,
     })
 
 }
@@ -148,7 +141,6 @@ func Shutdown(c *gin.Context){
     }
 
     fmt.Println("notebook is running... and send event response")
-    flag = true
 
     STATUS_NOTEBOOK = false
 }
@@ -159,14 +151,14 @@ func Shutdown(c *gin.Context){
 */
 func TurnOnEndpoint(c *gin.Context){
 
-    // notebook IP is sent via POST body
-    b, err := c.GetRawData()
-    if err != nil{
-        panic(err)
-    }
-    CONN_IP_NOTEBOOK = string(b)
-    fmt.Println(string(b))
-
+//    // notebook IP is sent via POST body
+//    b, err := c.GetRawData()
+//    if err != nil{
+//        panic(err)
+//    }
+//    CONN_IP_NOTEBOOK = string(b)
+//    fmt.Println(string(b))
+//
     // Set Status ON
     STATUS_NOTEBOOK = true
 

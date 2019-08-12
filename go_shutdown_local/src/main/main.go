@@ -11,47 +11,54 @@ import(
     "bytes"
     "net/http"
     "io/ioutil"
+    "strings"
 )
+type Timeout struct{
+    timeout string
+    timestamp string
+}
+
 
 // TCP Server
-
-
 func main() {
     // 1) Send the endpoint INFO to server
     reqBody := bytes.NewBufferString(GetLocalIP())
-    fmt.Println(GetLocalIP())
 
     // 34.225.204.24
     recv, err := http.Post("http://127.0.0.1:8004/api/v1/notebook/turnon", "text/plain", reqBody) 
     fmt.Println("Send turnon signal to server")
     if err != nil{
-        
         fmt.Println(err.Error())
     }
 
     fmt.Println(recv)
     fmt.Println("recieve Response")
+
+    for {
+
+        var url string = "http://127.0.0.1:8004/api/v1/long?timeout=5&category=cmd"
+        resp, err := http.Get(url)
+        if err != nil {
+            panic(err)
+        }
+
+        data, err := ioutil.ReadAll(resp.Body)
+        if err != nil {
+            panic(err)
+        }
     
-    var url string = "http://127.0.0.1:8004/api/v1/long?timeout=3600&category=cmd"
-    resp, err := http.Get(url)
-    if err != nil {
-        panic(err)
+        fmt.Println(string(data))
+        if strings.Contains(string(data), "timeout") {
+            resp.Body.Close()
+            continue
+        }else{
+            // shutdown command is comming...
+            fmt.Println("Shutdown this notebook bye..")
+            //Shutdown()
+            break;
+        }
+
     }
- 
-    defer resp.Body.Close()
- 
-    // 결과 출력
-    data, err := ioutil.ReadAll(resp.Body)
-    if err != nil {
-        panic(err)
-    }
-    // {"events":[{"timestamp":1565616607427,"category":"farmss","data":"shutdown plz"}]}
-    // {"timeout":"no events before timeout","timestamp":1565615537077}
-
-
-    fmt.Printf("%s\n", string(data))
-
-
 }
 
 func ConnHandler(conn net.Conn) {
